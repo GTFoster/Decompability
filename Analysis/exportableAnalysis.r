@@ -1,6 +1,3 @@
-## ----setup, include=FALSE-------------------------------------------------------------------------
-knitr::opts_chunk$set(echo = TRUE)
-
 
 ## -------------------------------------------------------------------------------------------------
 install.packages("tidyverse")
@@ -9,6 +6,8 @@ install.packages("ape")
 install.packages("phytools")
 install.packages("igraph")
 install.packages("magrittr")
+install.packages("foreach")
+install.packages("doParallel")
 
 library(tidyverse)
 library(PVR)
@@ -16,6 +15,8 @@ library(ape)
 library(phytools)
 library(igraph)
 library(magrittr)
+library(foreach)
+library(doParallel)
 
 
 ## -------------------------------------------------------------------------------------------------
@@ -120,43 +121,55 @@ spagTree <-  ape::read.nexus(file="../Data/Piatkowski&Shaw_2019_MCC_Tree.nex")
 
 
 ## -------------------------------------------------------------------------------------------------
+
+n.cores <- parallel::detectCores() - 1
+my.cluster <- parallel::makeCluster(
+  n.cores, 
+  type = "PSOCK"
+)
+
+doParallel::registerDoParallel(cl = my.cluster)
+
 analyze <- function(treesList, treeNames, nreps){
   output <- NULL
   ntrees <- length(treesList)
   for(i in 1:nreps){
-    for(j in 1:ntrees){
-      tree <- treesList[[j]]
-      #Choose a random set of nodes to remove
-      numDrops <- sample(1:(length(tree$tip.label)-10), size=1)
-      Intdrops <- sample(1:length(tree$tip.label), size=numDrops, replace = FALSE)
-      
-      #Get the descendants of those nodes and remove them
-      randPruned <- ape::drop.tip(tree, tree$tip.label[Intdrops])
-      
-      randGraph <- igraph::as.igraph(randPruned)
-      
-      #Run a phylodecomp on that tree
-      randDecomp <- PVR::PVRdecomp(phy=randPruned, type="nexus")
-      
-      randDF <- data.frame("rep"= i, 
-                 "vectorID"=names(((randDecomp@Eigen$values)/sum(randDecomp@Eigen$values))[1:10]), 
-                 "PropVar"=((randDecomp@Eigen$values)/sum(randDecomp@Eigen$values))[1:10],
-                 "Ntips"=length(randPruned$tip.label), 
-                 "infomapModularity"=igraph::infomap.community(randGraph)$modularity, 
-                 "tipsDiscarded"=toString(sort(Intdrops)),
-                 "tree"=treeNames[j], 
-                 row.names = NULL
-                 )
-      #Save outputs
-    output <- rbind(output, randDF)
-    }
+      for(j in 1:ntrees){
+        tree <- treesList[[j]]
+        #Choose a random set of nodes to remove
+        numDrops <- sample(1:(length(tree$tip.label)-10), size=1)
+        Intdrops <- sample(1:length(tree$tip.label), size=numDrops, replace = FALSE)
+        
+        #Get the descendants of those nodes and remove them
+        randPruned <- ape::drop.tip(tree, tree$tip.label[Intdrops])
+        
+        randGraph <- igraph::as.igraph(randPruned)
+        
+        #Run a phylodecomp on that tree
+        randDecomp <- PVR::PVRdecomp(phy=randPruned, type="nexus")
+        
+        randDF <- data.frame("rep"= i, 
+                   "vectorID"=names(((randDecomp@Eigen$values)/sum(randDecomp@Eigen$values))[1:10]), 
+                   "PropVar"=((randDecomp@Eigen$values)/sum(randDecomp@Eigen$values))[1:10],
+                   "Ntips"=length(randPruned$tip.label), 
+                   "infomapModularity"=igraph::infomap.community(randGraph)$modularity, 
+                   "tipsDiscarded"=toString(sort(Intdrops)),
+                   "tree"=treeNames[j], 
+                   row.names = NULL
+                   )
+        #Save outputs
+      output <- rbind(output, randDF)
+      }
   }
   return(output)
 }
 
 
 ## -------------------------------------------------------------------------------------------------
-FastResults <- analyze(treesList = list(shark_tree, spagTree, galltree), treeNames = c("sharks", "spag", "gallers"), nreps=2)
+FastResults <- analyze(treesList = list(shark_tree, spagTree, galltree), treeNames = c("sharks", "spag", "gallers"), nreps=1000)
+save(file="FastResults.RData")
+
+slowResults <- analyze(treesList = list(mammals), treeNames = c("mammals"), nreps=1000)
 save(file="FastResults.RData")
 
 
