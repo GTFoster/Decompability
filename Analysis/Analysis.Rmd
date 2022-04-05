@@ -16,6 +16,7 @@ library(ape)
 library(phytools)
 library(phytools)
 library(igraph)
+library(magrittr)
 ```
 
 
@@ -77,26 +78,12 @@ nreps <- 1000
 
 for(i in 1:nreps){
   #Choose a random set of nodes to remove
-  numNodes <- sample(1:3, size=1)
+  numDrops <- sample(1:(length(tree$tip.label)-round(length(tree$tip.label)/10)), size=1)
   
-  int_drops <- sample(1:tree$Nnode, size=numNodes, replace = FALSE) + length(tree$tip.label)
-  
-  #Check our remaining tree still would have enough tips remaining
-  toPrune <- NULL #Res
-  
-  for(j in 1:numNodes){
-    toPrune <- c(toPrune,getDescendants(tree, int_drops[j]))
-  }
-  
-  toPrune <- unique(toPrune)
-  toPrune <- toPrune[toPrune<=length(tree$tip.label)]
-  
-  if(length(toPrune) > 0.8*length(tree$tip.label)){
-    break
-  } #Check the number of pruned nodes is sub 80% (at least 20% of tips remaining)
+  Intdrops <- sample(1:length(tree$tip.label), size=numDrops, replace = FALSE)
   
   #Get the descendants of those nodes and remove them
-  randPruned <- ape::drop.tip(tree, tree$tip.label[toPrune])
+  randPruned <- ape::drop.tip(tree, tree$tip.label[Intdrops])
   randGraph <- igraph::as.igraph(randPruned)
   
   #Run a phylodecomp on that tree
@@ -107,6 +94,7 @@ for(i in 1:nreps){
              "PropVar"=((randDecomp@Eigen$values)/sum(randDecomp@Eigen$values))[1:10],
              "Ntips"=length(randPruned$tip.label), 
              "infomapModularity"=igraph::infomap.community(randGraph)$modularity, 
+             "tipsDiscarded"=toString(sort(Intdrops)),
              row.names = NULL
              )
   
@@ -115,8 +103,57 @@ for(i in 1:nreps){
 }
 ```
 
+How does node size affect Eigenvalue evenness?
 ```{r}
+sd(output$PropVar, na.rm=TRUE)
 
+output %>% dplyr::filter(., vectorID=="c1") %>%
+  ggplot(data=., aes(x=Ntips, y=PropVar))+geom_point()+
+  xlab("Number of Species in Tree")+
+  ylab("Proportion of Var Explained by 1st Eigenvector")
+
+output %>% dplyr::filter(., vectorID=="c2") %>%
+  ggplot(data=., aes(x=Ntips, y=PropVar))+geom_point()+
+  xlab("Number of Species in Tree")+
+  ylab("Proportion of Var Explained by 2nd Eigenvector")
+
+output %>% group_by(., rep) %>% mutate(eigenSD=sd(PropVar)) %>%
+  dplyr::select(., Ntips, eigenSD) %>% unique() %>%
+  ggplot(data=., aes(x=Ntips, y=eigenSD))+
+  geom_point()+
+  xlab("Number of Species in Tree")+
+  ylab("Standard Deviaiton of First 10 Eigenvalues' Proportions")+xlim(10, 75)
+```
+
+
+
+
+```{r}
+output %>% dplyr::filter(., vectorID=="c1") %>%
+  ggplot(data=., aes(x=infomapModularity, y=PropVar))+geom_point()+
+  xlab("Modularity")+
+  ylab("Proportion of Var Explained by 1st Eigenvector")
+
+output %>% dplyr::filter(., vectorID=="c1") %>% dplyr::filter(., infomapModularity > 0) %>%
+  ggplot(data=., aes(x=infomapModularity, y=PropVar))+geom_point()+
+  xlab("Non-Zero Modularity")+
+  ylab("Proportion of Var Explained by 1st Eigenvector")
+```
+
+
+
+
+
+##########################################
+Scratch Work!
+##########################################
+Temporarily Looking at outputs
+```{r}
+temp <- dplyr::filter(output, rep==785)
+
+cut <- as.numeric(strsplit(temp$tipsDiscarded[1], split=", ")[[1]])
+randPruned <- ape::drop.tip(tree, tree$tip.label[cut])
+plot(randPruned)
 ```
 
 
