@@ -1,0 +1,123 @@
+---
+title: "Exploratory Analysis"
+author: "Grant Foster"
+date: "3/29/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(PVR)
+library(ape)
+library(phytools)
+library(phytools)
+library(igraph)
+```
+
+
+```{r}
+tree <- ape::read.nexus(file="../Data/Nyman_Phylogeny.nex")
+tree <- phytools::force.ultrametric(tree)
+
+litter <- PVR::PVRdecomp(phy=tree, type="nexus")
+
+EigVec <- data.frame(litter@Eigen$vectors)
+EigVal <- data.frame(litter@Eigen$values)
+EigVal$litter.Eigen.values <- EigVal$litter.Eigen.values/(sum(EigVal$litter.Eigen.values))
+
+phytools::plotTree.wBars(tree=tree, setNames(EigVec$c1+abs(min(EigVec$c1)), tree$tip.label))
+phytools::plotTree.wBars(tree=tree, setNames(EigVec$c2+abs(min(EigVec$c2)), tree$tip.label))
+```
+
+```{r}
+tree$Nnode
+str(tree)
+phytools::getParent(tree, 74)
+phytools::getDescendants(tree, 120)
+
+
+
+
+phangorn::Descendants(tree)
+
+plot(tree,no.margin=TRUE,edge.width=2,cex=0.7)
+nodelabels(text=1:tree$Nnode,node=1:tree$Nnode+Ntip(tree))
+?nodelabels
+?phytools::getParent(tr)
+
+
+phytools::getDescendants(tree, 120)
+x <- phytools::getDescendants(tree, 120)[phytools::getDescendants(tree, 120) < length(tree$tip.label)]
+tree$tip.label[x]
+
+plotTree(tree,type="fan",fsize=0.9,ftype="i")
+labelnodes(text=1:tree$Nnode+Ntip(tree),node=1:tree$Nnode+Ntip(tree),
+    interactive=FALSE,circle.exp=0.9,cex=0.5)
+
+tree2 <- ape::drop.tip(tree, tree$tip.label[x])
+
+plotTree(tree2,type="fan",fsize=0.9,ftype="i")
+labelnodes(text=1:tree$Nnode+Ntip(tree),node=1:tree$Nnode+Ntip(tree),
+    interactive=FALSE,circle.exp=0.9,cex=0.5)
+
+
+```
+
+
+So, as this is written right now it randomly trims and internal node and its descendants, and then discards the run if there are less than 20% of the tips remaining. That's making me discard a lot of runs :(.
+
+Should probably change to just discarding tips instead of internal nodes. 
+```{r}
+output <- NULL
+nreps <- 1000
+
+for(i in 1:nreps){
+  #Choose a random set of nodes to remove
+  numNodes <- sample(1:3, size=1)
+  
+  int_drops <- sample(1:tree$Nnode, size=numNodes, replace = FALSE) + length(tree$tip.label)
+  
+  #Check our remaining tree still would have enough tips remaining
+  toPrune <- NULL #Res
+  
+  for(j in 1:numNodes){
+    toPrune <- c(toPrune,getDescendants(tree, int_drops[j]))
+  }
+  
+  toPrune <- unique(toPrune)
+  toPrune <- toPrune[toPrune<=length(tree$tip.label)]
+  
+  if(length(toPrune) > 0.8*length(tree$tip.label)){
+    break
+  } #Check the number of pruned nodes is sub 80% (at least 20% of tips remaining)
+  
+  #Get the descendants of those nodes and remove them
+  randPruned <- ape::drop.tip(tree, tree$tip.label[toPrune])
+  randGraph <- igraph::as.igraph(randPruned)
+  
+  #Run a phylodecomp on that tree
+  randDecomp <- PVR::PVRdecomp(phy=randPruned, type="nexus")
+  
+  randDF <- data.frame("rep"= i, 
+             "vectorID"=names(((randDecomp@Eigen$values)/sum(randDecomp@Eigen$values))[1:10]), 
+             "PropVar"=((randDecomp@Eigen$values)/sum(randDecomp@Eigen$values))[1:10],
+             "Ntips"=length(randPruned$tip.label), 
+             "infomapModularity"=igraph::infomap.community(randGraph)$modularity, 
+             row.names = NULL
+             )
+  
+  #Save outputs
+  output <- rbind(output, randDF)
+}
+```
+
+```{r}
+
+```
+
+
+
