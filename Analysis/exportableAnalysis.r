@@ -1,26 +1,24 @@
----
-title: "Exploratory Analysis"
-author: "Grant Foster"
-date: "3/29/2022"
-output: html_document
----
-
-```{r setup, include=FALSE}
+## ----setup, include=FALSE-------------------------------------------------------------------------
 knitr::opts_chunk$set(echo = TRUE)
-```
 
-```{r}
+
+## -------------------------------------------------------------------------------------------------
+install.packages("tidyverse")
+install.packages("PVR")
+install.packages("ape")
+install.packages("phytools")
+install.packages("igraph")
+install.packages("magrittr")
+
 library(tidyverse)
 library(PVR)
 library(ape)
 library(phytools)
-library(phytools)
 library(igraph)
 library(magrittr)
-```
 
 
-```{r}
+## -------------------------------------------------------------------------------------------------
 galltree <- ape::read.nexus(file="../Data/Nyman_Phylogeny.nex")
 galltree <- phytools::force.ultrametric(galltree)
 
@@ -32,11 +30,9 @@ EigVal$litter.Eigen.values <- EigVal$litter.Eigen.values/(sum(EigVal$litter.Eige
 
 phytools::plotTree.wBars(tree=galltree, setNames(EigVec$c1+abs(min(EigVec$c1)), galltree$tip.label))
 phytools::plotTree.wBars(tree=galltree, setNames(EigVec$c2+abs(min(EigVec$c2)), galltree$tip.label))
-```
-So, as this is written right now it randomly trims and internal node and its descendants, and then discards the run if there are less than 20% of the tips remaining. That's making me discard a lot of runs :(.
 
-Should probably change to just discarding tips instead of internal nodes. 
-```{r}
+
+## -------------------------------------------------------------------------------------------------
 output <- NULL
 nreps <- 1000
 
@@ -65,10 +61,9 @@ for(i in 1:nreps){
   #Save outputs
   output <- rbind(output, randDF)
 }
-```
 
-How does node size affect Eigenvalue evenness?
-```{r}
+
+## -------------------------------------------------------------------------------------------------
 sd(output$PropVar, na.rm=TRUE)
 
 output %>% dplyr::filter(., vectorID=="c1") %>%
@@ -87,12 +82,9 @@ output %>% group_by(., rep) %>% mutate(eigenSD=sd(PropVar)) %>%
   geom_point()+
   xlab("Number of Species in Tree")+
   ylab("Standard Deviaiton of First 10 Eigenvalues' Proportions")+xlim(10, 75)
-```
 
 
-
-
-```{r}
+## -------------------------------------------------------------------------------------------------
 output %>% dplyr::filter(., vectorID=="c1") %>%
   ggplot(data=., aes(x=infomapModularity, y=PropVar))+geom_point()+
   xlab("Modularity")+
@@ -102,13 +94,9 @@ output %>% dplyr::filter(., vectorID=="c1") %>% dplyr::filter(., infomapModulari
   ggplot(data=., aes(x=infomapModularity, y=PropVar))+geom_point()+
   xlab("Non-Zero Modularity")+
   ylab("Proportion of Var Explained by 1st Eigenvector")
-```
 
 
-The workflow above works on the galler data; let's do the same thing for a few more trees that have a few properties
-
-
-```{r}
+## -------------------------------------------------------------------------------------------------
 sharks_full <- ape::read.nexus(file="../Data/Stein2018SharkTree/output.nex")
 shark_tree <- sharks_full[[1]]
 
@@ -119,37 +107,19 @@ EigVal <- data.frame(litter@Eigen$values)
 EigVal$litter.Eigen.values <- EigVal$litter.Eigen.values/(sum(EigVal$litter.Eigen.values))
 
 phytools::plotTree.wBars(tree=shark_tree, setNames(EigVec$c1+abs(min(EigVec$c1)), shark_tree$tip.label)) #This plot looks terrible but it validates our method
-```
-
-I got this from Upham Paper Dryad: https://datadryad.org/stash/dataset/doi:10.5061/dryad.tb03d03
-
-The downloaded fileset (which is huge) has this file under "Data_S3_globalRAxML_files/RAxML_bipartitions.result_FIN4_raw_rooted_wBoots_4098mam1out_OK.newick"
 
 
-Running this decomposition many times is a lot to ask of my little laptop. I'll get things set up and then try it on a bigger machine.
-```{r}
+## -------------------------------------------------------------------------------------------------
 mammals <- phytools::read.newick(file="../Data/RAxML_bipartitions.result_FIN4_raw_rooted_wBoots_4098mam1out_OK.newick")
 
 mammals$node.label <- NULL #Igraph doesn't like the node labels given is this default tree, so we just remove them
-```
-
-litter <- PVR::PVRdecomp(phy=mammals)
-
-EigVec <- data.frame(litter@Eigen$vectors)
-EigVal <- data.frame(litter@Eigen$values)
-EigVal$litter.Eigen.values <- EigVal$litter.Eigen.values/(sum(EigVal$litter.Eigen.values))
-
-phytools::plotTree.wBars(tree=mammals, setNames(EigVec$c1+abs(min(EigVec$c1)), mammals$tip.label))
 
 
-
-This is our tiny baby tree; it only has 15 nodes!
-```{r}
+## -------------------------------------------------------------------------------------------------
 spagTree <-  ape::read.nexus(file="../Data/Piatkowski&Shaw_2019_MCC_Tree.nex")
-```
 
-For multiple trees
-```{r}
+
+## -------------------------------------------------------------------------------------------------
 analyze <- function(treesList, treeNames, nreps){
   output <- NULL
   ntrees <- length(treesList)
@@ -183,40 +153,26 @@ analyze <- function(treesList, treeNames, nreps){
   }
   return(output)
 }
-```
 
-First Three
 
-```{r}
+## -------------------------------------------------------------------------------------------------
 FastResults <- analyze(treesList = list(shark_tree, spagTree, galltree), treeNames = c("sharks", "spag", "gallers"), nreps=2)
 save(file="FastResults.RData")
-```
 
 
-
-```{r}
+## -------------------------------------------------------------------------------------------------
 temp <- analyze(treesList = list(shark_tree, spagTree, galltree, mammals), treeNames = c("sharks", "spag", "gallers", "mammals"), nreps=1)
 
 temp <- analyze(treesList = list(shark_tree), treeNames = c("sharks"), nreps=1)
 temp <- analyze(treesList = list(spagTree), treeNames = c("spagTree"), nreps=1)
 temp <- analyze(treesList = list(galltree), treeNames = c("galltree"), nreps=1)
 temp <- analyze(treesList = list(mammals), treeNames = c("mammals"), nreps=1)
-```
 
 
-
-
-##########################################
-Scratch Work!
-##########################################
-Temporarily Looking at outputs
-```{r}
+## -------------------------------------------------------------------------------------------------
 temp <- dplyr::filter(output, rep==785)
 
 cut <- as.numeric(strsplit(temp$tipsDiscarded[1], split=", ")[[1]])
 randPruned <- ape::drop.tip(tree, tree$tip.label[cut])
 plot(randPruned)
-```
-
-
 
