@@ -1,22 +1,21 @@
 
 ## -------------------------------------------------------------------------------------------------
-install.packages("tidyverse")
-install.packages("PVR")
-install.packages("ape")
-install.packages("phytools")
-install.packages("igraph")
-install.packages("magrittr")
-install.packages("foreach")
-install.packages("doParallel")
+#install.packages("tidyverse")
+#install.packages("PVR")
+#install.packages("ape")
+#install.packages("phytools")
+#install.packages("igraph")
+#install.packages("magrittr")
 
-library(tidyverse)
+
+library(dplyr)
+library(ggplot2)
 library(PVR)
 library(ape)
 library(phytools)
 library(igraph)
 library(magrittr)
-library(foreach)
-library(doParallel)
+
 
 
 ## -------------------------------------------------------------------------------------------------
@@ -128,7 +127,6 @@ my.cluster <- parallel::makeCluster(
   type = "PSOCK"
 )
 
-doParallel::registerDoParallel(cl = my.cluster)
 
 analyze <- function(treesList, treeNames, nreps){
   output <- NULL
