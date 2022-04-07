@@ -19,7 +19,7 @@ library(magrittr)
 
 
 ## -------------------------------------------------------------------------------------------------
-galltree <- ape::read.nexus(file="../Data/Nyman_Phylogeny.nex")
+galltree <- ape::read.nexus(file="../Data.nosync/Nyman_Phylogeny.nex")
 galltree <- phytools::force.ultrametric(galltree)
 
 litter <- PVR::PVRdecomp(phy=galltree, type="nexus")
@@ -97,7 +97,7 @@ output %>% dplyr::filter(., vectorID=="c1") %>% dplyr::filter(., infomapModulari
 
 
 ## -------------------------------------------------------------------------------------------------
-sharks_full <- ape::read.nexus(file="../Data/Stein2018SharkTree/output.nex")
+sharks_full <- ape::read.nexus(file="../Data.nosync/Stein2018SharkTree/output.nex")
 shark_tree <- sharks_full[[1]]
 
 litter <- PVR::PVRdecomp(phy=shark_tree, type="nexus")
@@ -110,13 +110,13 @@ phytools::plotTree.wBars(tree=shark_tree, setNames(EigVec$c1+abs(min(EigVec$c1))
 
 
 ## -------------------------------------------------------------------------------------------------
-mammals <- phytools::read.newick(file="../Data/RAxML_bipartitions.result_FIN4_raw_rooted_wBoots_4098mam1out_OK.newick")
+mammals <- phytools::read.newick(file="../Data.nosync/RAxML_bipartitions.result_FIN4_raw_rooted_wBoots_4098mam1out_OK.newick")
 
 mammals$node.label <- NULL #Igraph doesn't like the node labels given is this default tree, so we just remove them
 
 
 ## -------------------------------------------------------------------------------------------------
-spagTree <-  ape::read.nexus(file="../Data/Piatkowski&Shaw_2019_MCC_Tree.nex")
+spagTree <-  ape::read.nexus(file="../Data.nosync/Piatkowski&Shaw_2019_MCC_Tree.nex")
 
 
 ## -------------------------------------------------------------------------------------------------
@@ -165,10 +165,10 @@ analyze <- function(treesList, treeNames, nreps){
 
 ## -------------------------------------------------------------------------------------------------
 FastResults <- analyze(treesList = list(shark_tree, spagTree, galltree), treeNames = c("sharks", "spag", "gallers"), nreps=1000)
-save(file="FastResults.RData")
+save(FastResults, file="FastResults.RData")
 
 slowResults <- analyze(treesList = list(mammals), treeNames = c("mammals"), nreps=1000)
-save(file="FastResults.RData")
+save(slowResults, file="slowResults.RData")
 
 
 ## -------------------------------------------------------------------------------------------------
