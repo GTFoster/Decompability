@@ -190,8 +190,116 @@ gridExtra::grid.arrange(mod1, mod2, nrow = 1,
 
 ```
 
+###START HERE!!!!!
+### Last thing done: messed around with taking distribution summary stats (1st 3 moments) of distance matrix entries to see if that holds more variance. It does, but doesn't capture clustering (except maybe indirectly). Either do the decomp adn see just for giggles, or think about another clustering metric next (Peixoto?)
+
 # 3. Generating Random trees
 ```{r}
+randTrees <- ape::rmtree(40, rooted=TRUE, N=100)
 
+dmat <- list()
+output <- NULL
+for(i in 1:100){
+  #ultree <- force.ultrametric(randTrees[[i]])
+  ultree <- randTrees[[i]]
+  randGraph <- igraph::as.igraph(ultree)
+  value <- igraph::infomap.community(randGraph)$modularity
+  dmat[[i]] <- ape::cophenetic.phylo(ultree)
+  output <- c(output, value)
+}
+
+hist(dmat[[1]])
+hist(dmat[[2]])
+hist(dmat[[3]])
+hist(dmat[[4]])
+hist(dmat[[5]])
+hist(dmat[[6]])
+hist(dmat[[7]])
+hist(dmat[[8]])
+
+
+dmat[[1]]
+
+
+x <- MASS::fitdistr(dmat[[1]], densfun = "normal", method = "mle")
+as.vector(dmat[[1]])
+skewness
+fit.weibull <- MASS::fitdistr(dmat[[1]], densfun = "weibull", method = "mle", lower = c(0, 0))
+
+skew <- NULL
+ex_kurt <- NULL
+avg <- NULL
+for(i in 1:100){
+  avg <- c(avg, mean(as.vector(dmat[[i]])))
+  skew <- c(skew, moments::skewness(as.vector(dmat[[i]])))
+  ex_kurt <- c(ex_kurt, moments::kurtosis(as.vector(dmat[[i]]))-3)
+}
+hist(avg)
+hist(skew)
+hist(ex_kurt)
+```
+
+
+```{r}
+randGraph <- igraph::as.igraph(ult_Tree)
+
+analyze <- function(treesList, treeNames, nreps){
+  output <- NULL
+  ntrees <- length(treesList)
+  for(i in 1:nreps){
+    for(j in 1:ntrees){
+      tree <- treesList[[j]]
+      #Choose a random set of nodes to remove
+      numDrops <- sample(1:(length(tree$tip.label)-10), size=1)
+      Intdrops <- sample(1:length(tree$tip.label), size=numDrops, replace = FALSE)
+      
+      #Get the descendants of those nodes and remove them
+      randPruned <- ape::drop.tip(tree, tree$tip.label[Intdrops])
+      
+      randGraph <- igraph::as.igraph(randPruned)
+      
+      #Run a phylodecomp on that tree
+      randDecomp <- PVR::PVRdecomp(phy=randPruned, type="nexus")
+      
+      randDF <- data.frame("rep"= i, 
+                 "vectorID"=names(((randDecomp@Eigen$values)/sum(randDecomp@Eigen$values))[1:10]), 
+                 "PropVar"=((randDecomp@Eigen$values)/sum(randDecomp@Eigen$values))[1:10],
+                 "Ntips"=length(randPruned$tip.label), 
+                 "infomapModularity"=igraph::infomap.community(randGraph)$modularity, 
+                 "tipsDiscarded"=toString(sort(Intdrops)),
+                 "tree"=treeNames[j], 
+                 row.names = NULL
+                 )
+      #Save outputs
+    output <- rbind(output, randDF)
+    }
+  }
+  return(output)
+}
+
+randtree <- ape::rtree(n=40, rooted=TRUE)
+randtree$edge
+class(randtree)
+plot(randtree)
+ult_Tree <- force.ultrametric(randtree)
+plot(ult_Tree)
+
+ult_graph <- igraph::as.igraph(ult_Tree)
+igraph::infomap.community(ult_graph)$modularity
+```
+How modular can I make a tree?
+
+```{r}
+BatsnMarsupsTrees <- read.nexus(file="../Data.nosync/BatsnMarsupTrees.nex")
+test <- force.ultrametric(BatsnMarsupsTrees[[1]])
+ult_graph <- igraph::as.igraph(test)
+
+igraph::infomap.community(ult_graph)$modularity
+
+
+dmat <- ape::cophenetic.phylo(test)
+comm <- as.data.frame.matrix(table(test))
+
+test_mpd <- ses.mpd(comm, dmatrix, null.model = "independentswap", runs = 99, iterations = 1000, abundance.weighted = FALSE) 
 ```
 
