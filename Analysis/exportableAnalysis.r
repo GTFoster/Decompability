@@ -121,13 +121,6 @@ spagTree <-  ape::read.nexus(file="../Data.nosync/Piatkowski&Shaw_2019_MCC_Tree.
 
 ## -------------------------------------------------------------------------------------------------
 
-n.cores <- parallel::detectCores() - 1
-my.cluster <- parallel::makeCluster(
-  n.cores, 
-  type = "PSOCK"
-)
-
-
 analyze <- function(treesList, treeNames, nreps){
   output <- NULL
   ntrees <- length(treesList)
@@ -164,8 +157,8 @@ analyze <- function(treesList, treeNames, nreps){
 
 
 ## -------------------------------------------------------------------------------------------------
-FastResults <- analyze(treesList = list(shark_tree, spagTree, galltree), treeNames = c("sharks", "spag", "gallers"), nreps=1000)
-save(FastResults, file="FastResults.RData")
+#FastResults <- analyze(treesList = list(shark_tree, spagTree, galltree), treeNames = c("sharks", "spag", "gallers"), nreps=1000)
+#save(FastResults, file="FastResults.RData")
 
 slowResults <- analyze(treesList = list(mammals), treeNames = c("mammals"), nreps=1000)
 save(slowResults, file="slowResults.RData")
