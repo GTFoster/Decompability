@@ -18,10 +18,15 @@ library(phytools)
 library(igraph)
 library(magrittr)
 ```
+# Table of Contents:
+## 1. Galler Data Exploration
+## 2. Subsample Empirical Trees Randomly & Perform Eigendecomposition
+## 3.  Generating Random trees
 
 
+# 1. Galler Data Exploration
 ```{r}
-galltree <- ape::read.nexus(file="../Data/Nyman_Phylogeny.nex")
+galltree <- ape::read.nexus(file="../Data.nosync/Nyman_Phylogeny.nex")
 galltree <- phytools::force.ultrametric(galltree)
 
 litter <- PVR::PVRdecomp(phy=galltree, type="nexus")
@@ -33,79 +38,6 @@ EigVal$litter.Eigen.values <- EigVal$litter.Eigen.values/(sum(EigVal$litter.Eige
 phytools::plotTree.wBars(tree=galltree, setNames(EigVec$c1+abs(min(EigVec$c1)), galltree$tip.label))
 phytools::plotTree.wBars(tree=galltree, setNames(EigVec$c2+abs(min(EigVec$c2)), galltree$tip.label))
 ```
-So, as this is written right now it randomly trims and internal node and its descendants, and then discards the run if there are less than 20% of the tips remaining. That's making me discard a lot of runs :(.
-
-Should probably change to just discarding tips instead of internal nodes. 
-```{r}
-output <- NULL
-nreps <- 1000
-
-for(i in 1:nreps){
-  #Choose a random set of nodes to remove
-  numDrops <- sample(1:(length(galltree$tip.label)-round(length(galltree$tip.label)/10)), size=1)
-  
-  Intdrops <- sample(1:length(galltree$tip.label), size=numDrops, replace = FALSE)
-  
-  #Get the descendants of those nodes and remove them
-  randPruned <- ape::drop.tip(galltree, galltree$tip.label[Intdrops])
-  randGraph <- igraph::as.igraph(randPruned)
-  
-  #Run a phylodecomp on that galltree
-  randDecomp <- PVR::PVRdecomp(phy=randPruned, type="nexus")
-  
-  randDF <- data.frame("rep"= i, 
-             "vectorID"=names(((randDecomp@Eigen$values)/sum(randDecomp@Eigen$values))[1:10]), 
-             "PropVar"=((randDecomp@Eigen$values)/sum(randDecomp@Eigen$values))[1:10],
-             "Ntips"=length(randPruned$tip.label), 
-             "infomapModularity"=igraph::infomap.community(randGraph)$modularity, 
-             "tipsDiscarded"=toString(sort(Intdrops)),
-             row.names = NULL
-             )
-  
-  #Save outputs
-  output <- rbind(output, randDF)
-}
-```
-
-How does node size affect Eigenvalue evenness?
-```{r}
-sd(output$PropVar, na.rm=TRUE)
-
-output %>% dplyr::filter(., vectorID=="c1") %>%
-  ggplot(data=., aes(x=Ntips, y=PropVar))+geom_point()+
-  xlab("Number of Species in Tree")+
-  ylab("Proportion of Var Explained by 1st Eigenvector")
-
-output %>% dplyr::filter(., vectorID=="c2") %>%
-  ggplot(data=., aes(x=Ntips, y=PropVar))+geom_point()+
-  xlab("Number of Species in Tree")+
-  ylab("Proportion of Var Explained by 2nd Eigenvector")
-
-output %>% group_by(., rep) %>% mutate(eigenSD=sd(PropVar)) %>%
-  dplyr::select(., Ntips, eigenSD) %>% unique() %>%
-  ggplot(data=., aes(x=Ntips, y=eigenSD))+
-  geom_point()+
-  xlab("Number of Species in Tree")+
-  ylab("Standard Deviaiton of First 10 Eigenvalues' Proportions")+xlim(10, 75)
-```
-
-
-
-
-```{r}
-output %>% dplyr::filter(., vectorID=="c1") %>%
-  ggplot(data=., aes(x=infomapModularity, y=PropVar))+geom_point()+
-  xlab("Modularity")+
-  ylab("Proportion of Var Explained by 1st Eigenvector")
-
-output %>% dplyr::filter(., vectorID=="c1") %>% dplyr::filter(., infomapModularity > 0) %>%
-  ggplot(data=., aes(x=infomapModularity, y=PropVar))+geom_point()+
-  xlab("Non-Zero Modularity")+
-  ylab("Proportion of Var Explained by 1st Eigenvector")
-```
-
-
-The workflow above works on the galler data; let's do the same thing for a few more trees that have a few properties
 
 
 ```{r}
@@ -128,7 +60,7 @@ The downloaded fileset (which is huge) has this file under "Data_S3_globalRAxML_
 
 Running this decomposition many times is a lot to ask of my little laptop. I'll get things set up and then try it on a bigger machine.
 ```{r}
-mammals <- phytools::read.newick(file="../Data/RAxML_bipartitions.result_FIN4_raw_rooted_wBoots_4098mam1out_OK.newick")
+mammals <- phytools::read.newick(file="../Data.nosync/RAxML_bipartitions.result_FIN4_raw_rooted_wBoots_4098mam1out_OK.newick")
 
 mammals$node.label <- NULL #Igraph doesn't like the node labels given is this default tree, so we just remove them
 ```
@@ -148,6 +80,7 @@ This is our tiny baby tree; it only has 15 nodes!
 spagTree <-  ape::read.nexus(file="../Data.nosync/Piatkowski&Shaw_2019_MCC_Tree.nex")
 ```
 
+## 2. Subsample Empirical Trees Randomly & Perform Eigendecomposition
 For multiple trees
 ```{r}
 analyze <- function(treesList, treeNames, nreps){
@@ -185,38 +118,80 @@ analyze <- function(treesList, treeNames, nreps){
 }
 ```
 
-First Three
+Run this 
 
 ```{r}
-FastResults <- analyze(treesList = list(shark_tree, spagTree, galltree), treeNames = c("sharks", "spag", "gallers"), nreps=1000)
-save(FastResults, file="FastResults.RData")
+#FastResults <- analyze(treesList = list(shark_tree, spagTree, galltree), treeNames = c("sharks", "spag", "gallers"), nreps=1000)
+#save(FastResults, file="FastResults.RData")
+load(file="FastResults.RData")
+```
+
+
+```{r}
+p1 <- FastResults %>% dplyr::filter(., vectorID=="c1") %>%
+  ggplot(data=., aes(x=log(Ntips), y=PropVar, color=as.factor(tree)))+geom_point(alpha=0.33)+
+  xlab("Log Number of Species in Tree")+
+  ylab("Proportion of Variance: 1st Eigenvector")+theme_classic()+
+  theme(legend.position = c(0.7, 0.7))+guides(col=guide_legend("Phlogenetic Tree"))
+
+p2 <- FastResults %>% dplyr::filter(., vectorID=="c2") %>%
+  ggplot(data=., aes(x=log(Ntips), y=PropVar, color=as.factor(tree)))+geom_point(alpha=0.33)+
+  xlab("Log Number of Species in Tree")+
+  ylab("Proportion of Variance: 2nd Eigenvector")+
+  theme_classic()+
+  theme(legend.position ="none")
+
+p3 <- FastResults %>% dplyr::filter(., vectorID=="c10") %>%
+  ggplot(data=., aes(x=log(Ntips), y=PropVar, color=as.factor(tree)))+geom_point(alpha=0.33)+
+  xlab("Log Number of Species in Tree")+
+  ylab("Proportion of Variance: 10th Eigenvector")+
+  theme_classic()+
+  theme(legend.position ="none")
+
+p4 <- FastResults %>% group_by(., rep, tree) %>% mutate(eigenSD=sd(PropVar, na.rm=TRUE)) %>%
+  dplyr::select(., Ntips, eigenSD, tree) %>% unique() %>%
+  ggplot(data=., aes(x=log(Ntips), y=eigenSD, color=as.factor(tree)))+
+  geom_point(alpha=0.33)+
+  xlab("Log Number of Species in Tree")+
+  ylab("SD of First 10 Eigenvalues' Proportions Variance")+
+  theme_classic()+
+  theme(legend.position ="none")
+
+#pdf(file="../Figures/VariancexNtips_Fast.pdf", width=12, height=11.5)
+gridExtra::grid.arrange(p1, p2, p3, p4, nrow = 2, bottom="Figure1: The relationship between the log number of species in a subtree and the proportion of variance 
+                        explained by the 1st, 2nd, or 10th largest eigenvalues (panels a-c), as well as the standard deviation of the variance
+                        explained by first 10 eigenvalues. Each point is a tree constructed by randomly trimming tips from a larger complete tree.
+                        Point color corresponds to the complete tree a given subtree is constructed from; all 1190 known sharks(Stein2018), a group
+                        of 72 sawflies within subtribe Euurina (Kopelke), and a tree of 15 peat mosses in the genus Spaghnum (Piatkowski & Shaw, 2019)")
 ```
 
 
 
 ```{r}
-temp <- analyze(treesList = list(shark_tree, spagTree, galltree, mammals), treeNames = c("sharks", "spag", "gallers", "mammals"), nreps=1)
 
-temp <- analyze(treesList = list(shark_tree), treeNames = c("sharks"), nreps=1)
-temp <- analyze(treesList = list(spagTree), treeNames = c("spagTree"), nreps=1)
-temp <- analyze(treesList = list(galltree), treeNames = c("galltree"), nreps=1)
-temp <- analyze(treesList = list(mammals), treeNames = c("mammals"), nreps=1)
+mod1 <- FastResults %>% dplyr::filter(., vectorID=="c1") %>%
+  ggplot(data=., aes(x=infomapModularity, y=PropVar, color=tree))+geom_point()+
+  xlab("Modularity")+
+  ylab("Proportion of Var Explained by 1st Eigenvector")+theme_classic()+
+  theme(legend.position = c(0.7, 0.7))+guides(col=guide_legend("Phlogenetic Tree"))
+
+mod2 <- FastResults %>% dplyr::filter(., vectorID=="c1") %>% dplyr::filter(., infomapModularity > 0) %>%
+  ggplot(data=., aes(x=infomapModularity, y=PropVar, color=tree))+geom_point()+
+  xlab("Non-Zero Modularity")+
+  ylab("Proportion of Var Explained by 1st Eigenvector")+theme_classic()+
+  theme(legend.position = c(0.2, 0.2))+guides(col=guide_legend("Phlogenetic Tree"))
+
+#pdf(file="../Figures/ModularityxEig1.pdf", width=12, height=8.5)
+gridExtra::grid.arrange(mod1, mod2, nrow = 1,
+                        bottom="Figure2: The relationship between graph Modularity and the variance explained by the first eigenvalue. Points represent an individual
+                        subtree, constructed as described above. Modularity is calculated using the algorthithm infoMap; clustering at 0 occurs due to the algorithm
+                        being unwilling to assign membership below a certain modularity threshold. The rightmost panel is the same data, but with the 0-modularity
+                        values removed.")
+
 ```
 
-
-
-
-##########################################
-Scratch Work!
-##########################################
-Temporarily Looking at outputs
+# 3. Generating Random trees
 ```{r}
-temp <- dplyr::filter(output, rep==785)
 
-cut <- as.numeric(strsplit(temp$tipsDiscarded[1], split=", ")[[1]])
-randPruned <- ape::drop.tip(tree, tree$tip.label[cut])
-plot(randPruned)
 ```
-
-
 
